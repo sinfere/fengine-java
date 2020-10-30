@@ -3,8 +3,10 @@ package com.dix.fengine.app.parse
 import com.dix.codec.bkv.CodecUtil
 import com.dix.fengine.app.App
 import com.dix.fengine.app.mq.CoreMQ
+import com.dix.fengine.common.CoreJson
 import com.dix.fengine.core.CoreConfig
 import com.dix.fengine.packet.Packet
+import com.dix.fengine.packet.ProcessFramePayload
 import com.google.common.base.Strings
 import org.slf4j.LoggerFactory
 import java.util.concurrent.ConcurrentHashMap
@@ -49,7 +51,9 @@ object CoreParse : App {
     fun processPacket(data: Any) {
         try {
             parse(data) { out ->
+                // TODO client update
 
+                CoreMQ.publishClientPacketToProcess(out.toFramePacket().pack())
             }
         } catch (e: Exception) {
             logger.info("parse packet exception: {}", e.message)
@@ -57,7 +61,7 @@ object CoreParse : App {
         }
     }
 
-    fun parse(data: Any, processor: (ParseFrameResult) -> Unit) {
+    fun parse(data: Any, handler: (ParseFrameResult) -> Unit) {
         val payload = CoreMQ.getMessagePayload(data)
         val packet = Packet.unpack(payload)
 
@@ -65,7 +69,7 @@ object CoreParse : App {
         val pendingParseBuf = getPendingParseBytes(packet) ?: byteArrayOf()
         val buf = concat(pendingParseBuf, packet.buf)
 
-        val remainingBuf = parsePacket(packet, buf, processor)
+        val remainingBuf = parsePacket(packet, buf, handler)
         setPendingParseBytes(packet, remainingBuf)
     }
 
@@ -83,7 +87,7 @@ object CoreParse : App {
         return result
     }
 
-    private fun parsePacket(packet: Packet, buf: ByteArray, processor: (ParseFrameResult) -> Unit): ByteArray {
+    private fun parsePacket(packet: Packet, buf: ByteArray, handler: (ParseFrameResult) -> Unit): ByteArray {
         var protocols = protocolRegistry.keys.sorted()
         if (packet.protocol != 0) {
             protocols = listOf(packet.protocol)
@@ -143,7 +147,7 @@ object CoreParse : App {
                         currentBuf = result.pendingParseBytes ?: byteArrayOf()
                         packet.protocol = protocol
 
-                        processor(ParseFrameResult(frame, frameBytes, result.clientId))
+                        handler(ParseFrameResult(packet, frameBytes, frame, result.clientId))
 
                         // 不用继续本循环了，可以继续大循环
                         continueParse = true
@@ -189,25 +193,11 @@ object CoreParse : App {
         pendingParseBytes[key] = buf
     }
 
-    data class ParseFrameResult(val frame: Any, val frameBytes: ByteArray, val clientId: String?) {
-        override fun equals(other: Any?): Boolean {
-            if (this === other) return true
-            if (javaClass != other?.javaClass) return false
-
-            other as ParseFrameResult
-
-            if (frame != other.frame) return false
-            if (!frameBytes.contentEquals(other.frameBytes)) return false
-            if (clientId != other.clientId) return false
-
-            return true
-        }
-
-        override fun hashCode(): Int {
-            var result = frame.hashCode()
-            result = 31 * result + frameBytes.contentHashCode()
-            result = 31 * result + (clientId?.hashCode() ?: 0)
-            return result
+    data class ParseFrameResult(val packet: Packet, val frameBuf: ByteArray, val frame: Any, val clientId: String?) {
+        fun toFramePacket(): Packet {
+            val frameBytes = CoreJson.encode(frame)?.toByteArray()
+            val payload = ProcessFramePayload(frameBuf, frameBytes ?: byteArrayOf(), clientId)
+            return Packet.encodeFramePacket(packet, payload.pack())
         }
 
         companion object {

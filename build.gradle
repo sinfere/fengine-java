@@ -69,6 +69,11 @@ dependencies {
 	compile 'com.typesafe:config:1.4.0'
 	compile 'redis.clients:jedis:3.3.0'
 
+	compile 'com.fasterxml.jackson.core:jackson-core:2.11.2'
+	compile 'com.fasterxml.jackson.core:jackson-databind:2.11.2'
+	compile "com.fasterxml.jackson.module:jackson-module-kotlin:2.11.2"
+	compile 'com.jayway.jsonpath:json-path:2.4.0'
+
 	compile 'com.dix.base:bkv:0.0.7'
 
 	testCompile("org.junit.jupiter:junit-jupiter-api:5.0.1")

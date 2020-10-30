@@ -40,6 +40,13 @@ object CoreMQ : App, MQ {
     }
 
 
+    fun publishClientPacketToParse(bs: ByteArray) {
+        pub(getChannelNameOfClientPacketToParse(), bs)
+    }
+
+    fun publishClientPacketToProcess(bs: ByteArray) {
+        pub(getChannelNameOfClientPacketToProcess(), bs)
+    }
 
 
 

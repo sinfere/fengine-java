@@ -5,7 +5,6 @@ import com.dix.fengine.app.parse.CoreParse
 import com.dix.fengine.packet.Packet
 import com.dix.fengine.service.protocol.Protocol
 import org.junit.jupiter.api.Assertions
-import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
@@ -18,7 +17,7 @@ class TestParse {
 
     private fun encodePacket(hex: String): ByteArray {
         val buf = CodecUtil.hexToBytes(hex)
-        return Packet(System.currentTimeMillis(), 0, System.currentTimeMillis(), "", "1", "", 0, buf).encode()
+        return Packet(System.currentTimeMillis(), 0, System.currentTimeMillis(), "", "1", "", 0, buf).pack()
     }
 
     @Test

@@ -3,7 +3,7 @@ package com.dix.fengine.packet
 import com.dix.codec.bkv.BKV
 import java.lang.Exception
 
-class Packet(
+open class Packet(
         val id: Long,
         val type: Int,
         val time: Long,
@@ -13,7 +13,7 @@ class Packet(
         var protocol: Int,
         val buf: ByteArray
 ) {
-    fun encode(): ByteArray {
+    fun pack(): ByteArray {
         val bkv = BKV()
         bkv.add(keyId, id)
         bkv.add(keyType, type)
@@ -49,6 +49,10 @@ class Packet(
             val buf = bkv.get(keyBuf)?.value ?: throw Exception("field[buf] required")
             return Packet(id, type.toInt(), time, serverId, sessionId, clientId, protocol.toInt(), buf)
         }
+
+        fun encodeFramePacket(packet: Packet, buf: ByteArray): Packet {
+            return Packet(packet.id, PacketType.Frame.value, packet.time, packet.serverId, packet.sessionId, packet.clientId, packet.protocol, buf)
+        }
     }
 }
 
@@ -57,4 +61,35 @@ enum class PacketType(val value: Int) {
     Frame(1),
     Event(2),
     Command(3),
+}
+
+/**
+ * @param frameBuf client frame source bytes
+ * @param frameBytes encoded frame object after parse, normally json
+ */
+class ProcessFramePayload(val frameBuf: ByteArray, val frameBytes: ByteArray, val clientId: String?) {
+    fun pack(): ByteArray {
+        val bkv = BKV()
+        bkv.add(keyFrameBuf, frameBuf)
+        bkv.add(keyFrameBytes, frameBytes)
+        if (clientId != null) {
+            bkv.add(keyClientId, clientId)
+        }
+        return bkv.pack()
+    }
+
+    companion object {
+        private const val keyFrameBuf = 1L
+        private const val keyFrameBytes = 2L
+        private const val keyClientId = 3L
+
+        fun unpack(data: ByteArray): ProcessFramePayload {
+            val result = BKV.unpack(data)
+            val bkv = result.bkv
+            val frameBuf = bkv.get(keyFrameBuf)?.value ?: throw Exception("field[frame_buf] required")
+            val frameBytes = bkv.get(keyFrameBytes)?.value ?: throw Exception("field[frame_bytes] required")
+            val clientId = bkv.getStringValue(keyClientId)
+            return ProcessFramePayload(frameBuf, frameBytes, clientId)
+        }
+    }
 }
