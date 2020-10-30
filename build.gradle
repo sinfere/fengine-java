@@ -1,0 +1,103 @@
+buildscript {
+	ext {
+		kotlinVersion = '1.4.10'
+		springBootVersion = '2.1.6.RELEASE'
+		ext.vertxVersion = '3.9.3'
+	}
+	repositories {
+		maven { url 'https://maven.aliyun.com/repository/public/' }
+		maven { url 'https://maven.aliyun.com/repository/gradle-plugin' }
+	}
+	dependencies {
+		classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:${kotlinVersion}")
+		classpath("org.jetbrains.kotlin:kotlin-allopen:${kotlinVersion}")
+		classpath "gradle.plugin.io.dreampie.gradle:thrift-gradle-plugin:0.5.2"
+		classpath("gradle.plugin.com.google.cloud.tools:jib-gradle-plugin:1.7.0")
+	}
+}
+
+plugins {
+	id 'java'
+	id 'application'
+	id 'com.github.johnrengelman.shadow' version '5.0.0'
+	id 'org.jetbrains.kotlin.jvm' version '1.4.10'
+}
+
+apply plugin: 'kotlin'
+apply plugin: "com.google.cloud.tools.jib"
+
+
+group = 'com.xz'
+version = '0.0.1-SNAPSHOT'
+sourceCompatibility = 1.8
+
+compileKotlin {
+	kotlinOptions {
+		freeCompilerArgs = ["-Xjsr305=strict"]
+		jvmTarget = "1.8"
+	}
+}
+compileTestKotlin {
+	kotlinOptions {
+		freeCompilerArgs = ["-Xjsr305=strict"]
+		jvmTarget = "1.8"
+	}
+}
+
+repositories {
+	maven { url 'https://maven.aliyun.com/repository/public/' }
+	maven {
+		url "${artifactory_context_url}/gradle-release-local"
+		credentials {
+			username = "${artifactory_username}"
+			password = "${artifactory_password}"
+		}
+	}
+}
+
+dependencies {
+	compile "io.vertx:vertx-core:$vertxVersion"
+	compile "io.vertx:vertx-web:$vertxVersion"
+	compile "io.vertx:vertx-lang-kotlin:$vertxVersion"
+
+	compile 'org.slf4j:slf4j-log4j12:1.7.21'
+	compile "io.netty:netty-tcnative-boringssl-static:2.0.31.Final"
+	compile "com.google.inject:guice:4.2.3"
+	compile "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.3.2"
+	compile "org.quartz-scheduler:quartz:2.3.2"
+	implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8"
+	compile 'com.typesafe:config:1.4.0'
+	compile 'redis.clients:jedis:3.3.0'
+
+	compile 'com.dix.base:bkv:0.0.7'
+
+	testCompile("org.junit.jupiter:junit-jupiter-api:5.0.1")
+	testRuntime("org.junit.jupiter:junit-jupiter-engine:5.0.1")
+
+}
+
+test {
+	useJUnitPlatform {
+		// includeTags 'fast', 'smoke & feature-a'
+		// excludeTags 'slow', 'ci'
+		includeEngines 'junit-jupiter'
+		// excludeEngines 'junit-vintage'
+	}
+}
+
+mainClassName = 'com.dix.fengine.app.MainKt'
+
+shadowJar {
+	baseName = "app"
+	classifier = null
+	version = null
+	mergeServiceFiles {
+		include 'META-INF/services/io.vertx.core.spi.VertxFactory'
+		include 'META-INF/services/java.sql.Driver'
+	}
+	// minimize()
+}
+
+runShadow {
+	args ''
+}
